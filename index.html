@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jenkins Build Performance Analyzer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f1f5f9;
+      margin: 0;
+      color: #1e293b;
+    }
+    header {
+      background: #172554;
+      color: white;
+      padding: 22px;
+      text-align: center;
+    }
+    main {
+      max-width: 1000px;
+      margin: 25px auto;
+      padding: 15px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 15px;
+    }
+    .card {
+      background: white;
+      padding: 22px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px #cbd5e1;
+    }
+    .number {
+      font-size: 30px;
+      font-weight: bold;
+    }
+    .green { color: #15803d; }
+    .red { color: #dc2626; }
+    h2 { margin-top: 28px; }
+    table {
+      width: 100%;
+      background: white;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      text-align: left;
+    }
+    th { background: #dbeafe; }
+    @media (max-width: 600px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Jenkins Build Performance Analyzer</h1>
+    <p>Dashboard, Charts &amp; Reports</p>
+  </header>
+
+  <main>
+    <div class="cards">
+      <div class="card">
+        Total Builds
+        <div class="number" id="total">0</div>
+      </div>
+      <div class="card">
+        Successful Builds
+        <div class="number green" id="success">0</div>
+      </div>
+      <div class="card">
+        Failed Builds
+        <div class="number red" id="failed">0</div>
+      </div>
+      <div class="card">
+        Success Rate
+        <div class="number" id="rate">0%</div>
+      </div>
+    </div>
+    <h2>Build Results Chart</h2>
+<canvas id="buildChart" height="120"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  new Chart(document.getElementById("buildChart"), {
+    type: "bar",
+    data: {
+      labels: ["Successful Builds", "Failed Builds"],
+      datasets: [{
+        label: "Number of Builds",
+        data: [8, 2],
+        backgroundColor: ["#22c55e", "#ef4444"]
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
+</script>
+
+<h2>Build Duration Chart</h2>
+<canvas id="durationChart" height="120"></canvas>
+
+<script>
+  new Chart(document.getElementById("durationChart"), {
+    type: "line",
+    data: {
+      labels: ["Build 1", "Build 2", "Build 3", "Build 4", "Build 5"],
+      datasets: [{
+        label: "Build Duration (seconds)",
+        data: [30, 45, 25, 60, 40],
+        borderColor: "#2563eb",
+        backgroundColor: "#93c5fd",
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: {
+          beginAtZero: true,
+          title: {
+            display: true,
+            text: "Seconds"
+          }
+        }
+      }
+    }
+  });
+</script>
+
+    <h2>Build Performance Report</h2>
+    <p id="message">Your dashboard has been created. Build data will be added next.</p>
+
+<h2>Slow Build Report</h2>
+
+<p>Builds taking more than 40 seconds:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Build Number</th>
+      <th>Status</th>
+      <th>Duration</th>
+      <th>Performance</th>
+    </tr>
+  </thead>
+  <tbody id="slowBuilds"></tbody>
+</table>
+
+<script>
+  function showSlowBuilds() {
+    const slowBuilds = buildData.filter(
+      build => build.duration > 40
+    );
+
+    document.getElementById("slowBuilds").innerHTML =
+      slowBuilds.map(build => `
+        <tr>
+          <td>${build.number}</td>
+          <td>${build.status}</td>
+          <td>${build.duration} seconds</td>
+          <td style="color:red">Slow</td>
+        </tr>
+      `).join("");
+  }
+
+  showSlowBuilds();
+</script>
+<h2>Download Build Report</h2>
+
+<button onclick="downloadReport()">
+  Download CSV Report
+</button>
+
+<script>
+  function downloadReport() {
+    const headers = ["Build Number", "Status", "Duration (seconds)"];
+
+    const rows = buildData.map(build => [
+      build.number,
+      build.status,
+      build.duration
+    ]);
+
+    const csv = [headers, ...rows]
+      .map(row => row.join(","))
+      .join("\n");
+
+    const blob = new Blob([csv], {
+      type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "jenkins-build-report.csv";
+    link.click();
+
+    URL.revokeObjectURL(url);
+  }
+</script>
+
+<h2>Build Details</h2>
+
+<label for="statusFilter">Filter by status: </label>
+<select id="statusFilter" onchange="filterBuilds()">
+  <option value="All">All Builds</option>
+  <option value="Success">Successful</option>
+  <option value="Failed">Failed</option>
+</select>
+
+<br><br>
+
+<table>
+  <thead>
+    <tr>
+      <th>Build</th>
+      <th>Status</th>
+      <th>Duration</th>
+    </tr>
+  </thead>
+  <tbody id="builds"></tbody>
+</table>
+
+<script>
+  const buildData = [
+    { number: "#1", status: "Success", duration: 30 },
+    { number: "#2", status: "Success", duration: 58 },
+    { number: "#3", status: "Success", duration: 40 }
+  ];
+
+  function filterBuilds() {
+    const selected = document.getElementById("statusFilter").value;
+    const tbody = document.getElementById("builds");
+
+    const filtered = buildData.filter(build =>
+      selected === "All" || build.status === selected
+    );
+
+    tbody.innerHTML = filtered.map(build => `
+      <tr>
+        <td>${build.number}</td>
+        <td style="color:${build.status === "Success" ? "green" : "red"}">
+          ${build.status}
+        </td>
+        <td>${build.duration} seconds</td>
+      </tr>
+    `).join("");
+  }
+
+  filterBuilds();
+</script>
+  </main>
+</body>
+</html>
